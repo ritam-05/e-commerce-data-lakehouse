@@ -29,16 +29,19 @@ def process_file_to_bronze(spark: SparkSession, file_name: str):
     logger.info(f"Processing {file_name} -> {dataset_name} (Bronze)")
 
     try:
-        # 1. Read raw CSV
-        # header=True uses the first row as column names
-        # inferSchema=True guesses data types (acceptable for Bronze)
-        df = spark.read.csv(raw_path, header=True, inferSchema=True)
+        # 1. Read raw CSV (Now handles multiline Portuguese reviews safely)
+        df = spark.read.csv(
+            raw_path, 
+            header=True, 
+            inferSchema=True, 
+            multiLine=True, 
+            escape='"'
+        )
 
         # 2. Add ingestion metadata
         df_with_metadata = df.withColumn("ingestion_timestamp", current_timestamp())
 
-        # 3. Write to Bronze as Parquet
-        # mode="overwrite" ensures idempotent processing (rerunning script replaces old data safely)
+        # 3. Write to Bronze as Parquet (Idempotent overwrite)
         df_with_metadata.write.mode("overwrite").parquet(bronze_path)
         
         logger.info(f"Successfully wrote {df.count()} rows to {bronze_path}")
@@ -49,7 +52,6 @@ def process_file_to_bronze(spark: SparkSession, file_name: str):
 def main():
     spark = create_spark_session()
     
-    # List all CSVs in the raw directory
     if not os.path.exists(RAW_DIR):
         logger.error(f"Raw directory not found at {RAW_DIR}. Did you download the dataset?")
         return

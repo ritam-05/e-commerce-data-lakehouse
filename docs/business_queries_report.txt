@@ -1,0 +1,234 @@
+E-Commerce Data Lakehouse - Business Analytics Report
+===================================================
+
+--- 1. Monthly Revenue ---
+ purchase_year  purchase_month  total_revenue
+          2016               9         252.24
+          2016              10       59090.48
+          2016              12          19.62
+          2017               1      138488.04
+          2017               2      291908.01
+          2017               3      449863.60
+          2017               4      417788.03
+          2017               5      592918.82
+          2017               6      511276.38
+          2017               7      592382.92
+          2017               8      674396.32
+          2017               9      727762.45
+          2017              10      779677.88
+          2017              11     1194882.80
+          2017              12      878401.48
+          2018               1     1115004.18
+          2018               2      992463.34
+          2018               3     1159652.12
+          2018               4     1160785.48
+          2018               5     1153982.15
+          2018               6     1023880.50
+          2018               7     1066540.75
+          2018               8     1022425.32
+          2018               9        4439.54
+          2018              10         589.67
+
+--- 2. Monthly Order Growth ---
+ purchase_year  purchase_month  total_orders  order_growth
+          2016               9             4           NaN
+          2016              10           324         320.0
+          2016              12             1        -323.0
+          2017               1           800         799.0
+          2017               2          1780         980.0
+          2017               3          2682         902.0
+          2017               4          2404        -278.0
+          2017               5          3700        1296.0
+          2017               6          3245        -455.0
+          2017               7          4026         781.0
+          2017               8          4331         305.0
+          2017               9          4285         -46.0
+          2017              10          4631         346.0
+          2017              11          7544        2913.0
+          2017              12          5673       -1871.0
+          2018               1          7269        1596.0
+          2018               2          6728        -541.0
+          2018               3          7211         483.0
+          2018               4          6939        -272.0
+          2018               5          6873         -66.0
+          2018               6          6167        -706.0
+          2018               7          6292         125.0
+          2018               8          6512         220.0
+          2018               9            16       -6496.0
+          2018              10             4         -12.0
+
+--- 3. Average Order Value (AOV) ---
+ average_order_value
+               161.0
+
+--- 4. Top 5 Selling Products ---
+     product_category  total_units_sold
+       bed_bath_table             11115
+        health_beauty              9670
+       sports_leisure              8641
+      furniture_decor              8334
+computers_accessories              7827
+
+--- 5. Revenue by Product Category ---
+     product_category  category_revenue
+        health_beauty        1258681.34
+        watches_gifts        1205005.68
+       bed_bath_table        1036988.68
+       sports_leisure         988048.97
+computers_accessories         911954.32
+
+--- 6. Top 5 Sellers by Revenue ---
+                       seller_id  total_revenue
+4869f7a5dfa277a7dca6462dcf3b52b2      229472.63
+53243585a1d6dc2643021fd1853d8905      222776.05
+4a3ca9315b744ce9f8e9374361493884      200472.92
+fa1c13f2614d7b5c4749cbc52fecda94      194042.03
+7c67e1448b00f6e969d365cea6b010ab      187923.89
+
+--- 7. Customer Geographic Distribution ---
+customer_state  total_customers
+            SP            40302
+            RJ            12384
+            MG            11259
+            RS             5277
+            PR             4882
+
+--- 8. Delivery Delay Analysis (Avg Days Late) ---
+ avg_days_diff  late_deliveries
+        -11.88             7827
+
+--- 9. Average Freight Cost by State ---
+customer_state  avg_freight
+            RR        42.98
+            PB        42.72
+            RO        41.07
+            AC        40.07
+            PI        39.15
+
+--- 10. Review Score Distribution ---
+ review_score  total_reviews
+            5          56910
+            4          19007
+            3           8097
+            2           3114
+            1          11282
+
+--- 11. Payment Method Popularity ---
+payment_type  usage_count  total_value
+ credit_card        76795  12542084.19
+      boleto        19784   2869361.27
+     voucher         5769    379436.87
+  debit_card         1529    217989.79
+
+--- 12. Repeat Customer Rate ---
+ repeat_customers  total_customers repeat_rate_pct
+             2997            96096            3.12
+
+--- 13. Peak Order Hours ---
+ hour_of_day  total_orders
+          16          6675
+          11          6578
+          14          6569
+          13          6518
+          15          6454
+
+--- 14. Best Rated Product Categories ---
+      product_category  avg_score  total_reviews
+books_general_interest       4.45            549
+       books_technical       4.36            263
+   luggage_accessories       4.31           1086
+            food_drink       4.31            274
+         fashion_shoes       4.25            256
+
+--- 15. Delivery Time by State (Fastest vs Slowest) ---
+customer_state  avg_delivery_days
+            SP                8.7
+            MG               11.9
+            PR               11.9
+            DF               12.9
+            SC               14.9
+            RS               15.2
+            RJ               15.2
+            GO               15.5
+            MS               15.5
+            ES               15.7
+            TO               17.6
+            MT               18.0
+            PE               18.4
+            RN               19.2
+            RO               19.3
+            BA               19.3
+            PI               19.4
+            PB               20.4
+            AC               21.0
+            CE               21.2
+            SE               21.5
+            MA               21.5
+            PA               23.7
+            AL               24.5
+            AM               26.4
+            AP               27.2
+            RR               29.3
+
+--- 16. Installment Payment Behavior ---
+ payment_installments  total_orders  avg_order_value
+                    0             2            94.32
+                    1         25455            95.87
+                    2         12413           127.23
+                    3         10461           142.54
+                    4          7098           163.98
+                    5          5239           183.47
+                    6          3920           209.85
+                    7          1626           187.67
+                    8          4268           307.74
+                    9           644           203.44
+                   10          5328           415.09
+                   11            23           124.93
+                   12           133           321.68
+                   13            16           150.46
+                   14            15           167.96
+                   15            74           445.55
+                   16             5           292.69
+                   17             8           174.60
+                   18            27           486.48
+                   20            17           615.80
+                   21             3           243.70
+                   22             1           228.71
+                   23             1           236.48
+                   24            18           610.05
+
+--- 17. Order Status Breakdown ---
+order_status  total_orders pct_of_total
+   delivered         96478        97.02
+     shipped          1107         1.11
+    canceled           625         0.63
+ unavailable           609         0.61
+    invoiced           314         0.32
+  processing           301         0.30
+     created             5         0.01
+    approved             2         0.00
+
+--- 18. Top 5 States by Total Revenue ---
+customer_state  total_revenue
+            SP     5998226.96
+            RJ     2144379.69
+            MG     1872257.26
+            RS      890898.54
+            PR      811156.38
+
+--- 19. Top 5 Product Categories by Volume Size ---
+                       product_category  avg_volume_cm3
+      furniture_mattress_and_upholstery        77244.30
+                       office_furniture        75468.47
+kitchen_dining_laundry_garden_furniture        69406.10
+                      home_appliances_2        55476.31
+                  furniture_living_room        54486.13
+
+--- 20. Seller Geographic Distribution ---
+seller_state  total_sellers
+          SP           1849
+          PR            349
+          MG            244
+          SC            190
+          RJ            171
+
