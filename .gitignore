@@ -1,0 +1,19 @@
+# Environments
+venv/
+.env
+__pycache__/
+*.pyc
+
+# Data (Never commit raw or processed datasets)
+data/
+!data/**/.gitkeep
+
+# Spark and Hadoop logs
+derby.log
+metastore_db/
+spark-warehouse/
+*.class
+
+# OS generated files
+.DS_Store
+Thumbs.db
