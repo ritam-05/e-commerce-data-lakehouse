@@ -1,0 +1,107 @@
+table fact_order_items
+	lineageTag: 0f6d731d-c717-4f8e-872c-81d965926430
+
+	measure 'Average Freight' = AVERAGE(fact_order_items[freight_value])
+		lineageTag: 2a0f3e86-bd5c-4a5b-a6a6-7ea9804e8b11
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Product Revenue' = SUM(fact_order_items[price])
+		lineageTag: db9feb83-a0ec-430d-b9a6-4f908ff74527
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column 'Source.Name'
+		dataType: string
+		lineageTag: f3ee8092-382c-4bcf-95c8-ded537ce9105
+		summarizeBy: none
+		sourceColumn: Source.Name
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_id
+		dataType: string
+		lineageTag: d09fefe2-695c-4dd9-9970-6a0b4a4ff7c1
+		summarizeBy: none
+		sourceColumn: order_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_item_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 95056235-eece-4d96-9f9b-1f5c43ae5883
+		summarizeBy: sum
+		sourceColumn: order_item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_id
+		dataType: string
+		lineageTag: 6011044d-e3fb-4131-9952-8d4bc60a76bf
+		summarizeBy: none
+		sourceColumn: product_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column seller_id
+		dataType: string
+		lineageTag: a3d99069-e569-41b2-b646-b615bb908eef
+		summarizeBy: none
+		sourceColumn: seller_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column shipping_limit_date
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: dfc76bb5-a46b-4bf5-9431-a186fbb53126
+		summarizeBy: none
+		sourceColumn: shipping_limit_date
+
+		variation Variation
+			isDefault
+			relationship: 4b3378f5-bb13-423d-8ba3-b513cd927914
+			defaultHierarchy: LocalDateTable_35166630-66cd-42af-9357-d0eb6b80676b.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column price
+		dataType: double
+		lineageTag: 565c01cf-d69f-45a2-b937-d1942c855f5b
+		summarizeBy: sum
+		sourceColumn: price
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column freight_value
+		dataType: double
+		lineageTag: f09db334-5244-43ac-933f-7edebcec2872
+		summarizeBy: sum
+		sourceColumn: freight_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition fact_order_items = m
+		mode: import
+		source =
+				let
+				    Source = Folder.Files("C:\Users\ritam\Desktop\work\projects\e-commerce-data-lakehouse\data\gold\fact_order_items"),
+				    #"Filtered Rows" = Table.SelectRows(Source, each ([Extension] = ".parquet")),
+				    #"Filtered Hidden Files1" = Table.SelectRows(#"Filtered Rows", each [Attributes]?[Hidden]? <> true),
+				    #"Invoke Custom Function1" = Table.AddColumn(#"Filtered Hidden Files1", "Transform File (4)", each #"Transform File (4)"([Content])),
+				    #"Renamed Columns1" = Table.RenameColumns(#"Invoke Custom Function1", {"Name", "Source.Name"}),
+				    #"Removed Other Columns1" = Table.SelectColumns(#"Renamed Columns1", {"Source.Name", "Transform File (4)"}),
+				    #"Expanded Table Column1" = Table.ExpandTableColumn(#"Removed Other Columns1", "Transform File (4)", Table.ColumnNames(#"Transform File (4)"(#"Sample File (4)"))),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Expanded Table Column1",{{"Source.Name", type text}, {"order_id", type text}, {"order_item_id", Int64.Type}, {"product_id", type text}, {"seller_id", type text}, {"shipping_limit_date", type datetime}, {"price", type number}, {"freight_value", type number}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

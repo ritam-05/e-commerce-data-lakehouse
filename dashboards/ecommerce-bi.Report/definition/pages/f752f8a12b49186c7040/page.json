@@ -1,0 +1,13 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
+  "name": "f752f8a12b49186c7040",
+  "displayName": "Customer Experience",
+  "displayOption": "FitToPage",
+  "height": 1080,
+  "width": 1920,
+  "pageBinding": {
+    "name": "5ec64cbc53a90427a052",
+    "type": "Default",
+    "parameters": []
+  }
+}

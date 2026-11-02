@@ -1,0 +1,91 @@
+table fact_reviews
+	lineageTag: 959c4b9a-4f19-47e1-8386-26083b085362
+
+	measure 'Average Review Score' = AVERAGE(fact_reviews[review_score])
+		formatString: 0.00
+		lineageTag: b30aebd0-c2d8-4f80-a1a5-c4a6981a8de6
+
+	measure 'Total Reviews' = COUNT(fact_reviews[review_id])
+		formatString: 0
+		lineageTag: e1f368c9-3078-41bb-bf9b-d991c02f6560
+
+	column 'Source.Name'
+		dataType: string
+		lineageTag: b6154f4c-87fa-4fc8-9d64-2859e889f497
+		summarizeBy: none
+		sourceColumn: Source.Name
+
+		annotation SummarizationSetBy = Automatic
+
+	column review_id
+		dataType: string
+		lineageTag: 03f6e8fe-5703-4a44-8e2d-a7d74628be6e
+		summarizeBy: none
+		sourceColumn: review_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_id
+		dataType: string
+		lineageTag: 7c9ef7a9-4262-4bcc-b215-7a584069a426
+		summarizeBy: none
+		sourceColumn: order_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column review_score
+		dataType: int64
+		formatString: 0
+		lineageTag: 1bf8c092-264a-4b2d-9298-daeb11dd7fb3
+		summarizeBy: sum
+		sourceColumn: review_score
+
+		annotation SummarizationSetBy = Automatic
+
+	column review_creation_date
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: eab03b7a-c85b-41c6-b96d-6629db91260a
+		summarizeBy: none
+		sourceColumn: review_creation_date
+
+		variation Variation
+			isDefault
+			relationship: 274b431f-296b-404d-97e3-518bfbd3e0c4
+			defaultHierarchy: LocalDateTable_8b6dd198-f018-4e57-9790-c58b647d76fb.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column review_answer_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 0af65ea7-df89-4a18-a100-8028a87ae5a7
+		summarizeBy: none
+		sourceColumn: review_answer_timestamp
+
+		variation Variation
+			isDefault
+			relationship: 18245d01-742f-4da8-a3de-e31f3f58d95f
+			defaultHierarchy: LocalDateTable_d786f2e9-5988-4484-b3d5-a0c7753de693.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_reviews = m
+		mode: import
+		source =
+				let
+				    Source = Folder.Files("C:\Users\ritam\Desktop\work\projects\e-commerce-data-lakehouse\data\gold\fact_reviews"),
+				    #"Filtered Rows" = Table.SelectRows(Source, each ([Extension] = ".parquet")),
+				    #"Filtered Hidden Files1" = Table.SelectRows(#"Filtered Rows", each [Attributes]?[Hidden]? <> true),
+				    #"Invoke Custom Function1" = Table.AddColumn(#"Filtered Hidden Files1", "Transform File (6)", each #"Transform File (6)"([Content])),
+				    #"Renamed Columns1" = Table.RenameColumns(#"Invoke Custom Function1", {"Name", "Source.Name"}),
+				    #"Removed Other Columns1" = Table.SelectColumns(#"Renamed Columns1", {"Source.Name", "Transform File (6)"}),
+				    #"Expanded Table Column1" = Table.ExpandTableColumn(#"Removed Other Columns1", "Transform File (6)", Table.ColumnNames(#"Transform File (6)"(#"Sample File (6)"))),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Expanded Table Column1",{{"Source.Name", type text}, {"review_id", type text}, {"order_id", type text}, {"review_score", Int64.Type}, {"review_creation_date", type datetime}, {"review_answer_timestamp", type datetime}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

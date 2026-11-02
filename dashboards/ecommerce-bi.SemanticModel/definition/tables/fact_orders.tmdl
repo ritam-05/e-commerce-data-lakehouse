@@ -1,0 +1,157 @@
+table fact_orders
+	lineageTag: 22c8064a-d7d2-4ab2-8194-cfca5beb61f3
+
+	measure 'Total Orders' = DISTINCTCOUNT(fact_orders[order_id])
+		formatString: \$#,0.###############;(\$#,0.###############);\$#,0.###############
+		lineageTag: a8c31a04-79a5-44bc-b4ae-8af58052d69e
+
+	measure 'Average Order Value' = [Total Revenue] / [Total Orders]
+		formatString: \$#,0.###############;(\$#,0.###############);\$#,0.###############
+		lineageTag: c425afd0-f16b-4695-8b3f-d3bf352f6abd
+
+	measure 'Delivery Time (Days)' = AVERAGEX(fact_orders, DATEDIFF(fact_orders[order_approved_at], fact_orders[order_delivered_customer_date], DAY))
+		formatString: 0.00
+		lineageTag: 80a61218-5137-48a9-ab7c-0292f9197c1c
+		dataCategory: Uncategorized
+
+	column 'Source.Name'
+		dataType: string
+		lineageTag: 3596504b-ea33-4cdf-8ffe-3e03c6786b0c
+		summarizeBy: none
+		sourceColumn: Source.Name
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_id
+		dataType: string
+		lineageTag: bf460e99-033d-45fd-aa7b-af29f3c00bd3
+		summarizeBy: none
+		sourceColumn: order_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_id
+		dataType: string
+		lineageTag: 1c1ef5d6-8ba1-40d9-b7dc-fa903f370d4f
+		summarizeBy: none
+		sourceColumn: customer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_status
+		dataType: string
+		lineageTag: 410ef8d1-f927-438e-bcfe-a58c1e9a069c
+		summarizeBy: none
+		sourceColumn: order_status
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_purchase_timestamp
+		dataType: dateTime
+		formatString: yyyy
+		lineageTag: 12196700-0aa1-4021-adc0-bc9f320c9120
+		summarizeBy: none
+		sourceColumn: order_purchase_timestamp
+
+		variation Variation
+			isDefault
+			relationship: b11178df-6bd9-4a5d-9de4-2a30b747027b
+			defaultHierarchy: LocalDateTable_6f4f1ab7-10a9-4035-b87d-65be0d73770d.'Date Hierarchy'
+
+		changedProperty = DataType
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation PBI_FormatHint = {"isDateTimeCustom":true}
+
+	column order_approved_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: bafdd632-6aa3-4d07-9c54-019de86b33b8
+		summarizeBy: none
+		sourceColumn: order_approved_at
+
+		variation Variation
+			isDefault
+			relationship: 3dabcfd2-29f1-4e3b-b302-3aa2948bfe53
+			defaultHierarchy: LocalDateTable_759fcf1a-a230-410b-bbe2-ec81891542fb.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_delivered_carrier_date
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 08aa9864-8b2b-401d-81a0-304b695942a3
+		summarizeBy: none
+		sourceColumn: order_delivered_carrier_date
+
+		variation Variation
+			isDefault
+			relationship: 5bd64849-1f59-476f-8c51-f6fba278ca5d
+			defaultHierarchy: LocalDateTable_231354bc-75f7-4803-8999-41ed9331925f.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_delivered_customer_date
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: d4047431-764c-4340-89e6-6db8c8bbb7ee
+		summarizeBy: none
+		sourceColumn: order_delivered_customer_date
+
+		variation Variation
+			isDefault
+			relationship: 6f3185c4-c340-4ac0-84f8-85216aa57ff1
+			defaultHierarchy: LocalDateTable_56cad237-94ae-4324-84f3-1eb5ce5a0ef7.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_estimated_delivery_date
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 04045099-b36a-4bfb-b9fa-b9de9a5f617e
+		summarizeBy: none
+		sourceColumn: order_estimated_delivery_date
+
+		variation Variation
+			isDefault
+			relationship: 82d3dd3c-b2d5-4e29-8af6-11ceb5a127ef
+			defaultHierarchy: LocalDateTable_96420b5f-5339-4c0f-9537-7ba9f67dae8b.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column ingestion_timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: a3044ea3-7dac-4349-942b-3c8f2d00f6aa
+		summarizeBy: none
+		sourceColumn: ingestion_timestamp
+
+		variation Variation
+			isDefault
+			relationship: c557d2b7-e4b7-47c0-bf0a-5348866f5232
+			defaultHierarchy: LocalDateTable_7fc4da9f-3d82-4e0d-a36f-37b4ddb76b84.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_orders = m
+		mode: import
+		source =
+				let
+				    Source = Folder.Files("C:\Users\ritam\Desktop\work\projects\e-commerce-data-lakehouse\data\gold\fact_orders"),
+				    #"Filtered Rows" = Table.SelectRows(Source, each ([Extension] = ".parquet")),
+				    #"Filtered Hidden Files1" = Table.SelectRows(#"Filtered Rows", each [Attributes]?[Hidden]? <> true),
+				    #"Invoke Custom Function1" = Table.AddColumn(#"Filtered Hidden Files1", "Transform File (7)", each #"Transform File (7)"([Content])),
+				    #"Renamed Columns1" = Table.RenameColumns(#"Invoke Custom Function1", {"Name", "Source.Name"}),
+				    #"Removed Other Columns1" = Table.SelectColumns(#"Renamed Columns1", {"Source.Name", "Transform File (7)"}),
+				    #"Expanded Table Column1" = Table.ExpandTableColumn(#"Removed Other Columns1", "Transform File (7)", Table.ColumnNames(#"Transform File (7)"(#"Sample File (7)"))),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Expanded Table Column1",{{"Source.Name", type text}, {"order_id", type text}, {"customer_id", type text}, {"order_status", type text}, {"order_purchase_timestamp", type datetime}, {"order_approved_at", type datetime}, {"order_delivered_carrier_date", type datetime}, {"order_delivered_customer_date", type datetime}, {"order_estimated_delivery_date", type datetime}, {"ingestion_timestamp", type datetime}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

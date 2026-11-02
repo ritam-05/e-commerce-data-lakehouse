@@ -1,0 +1,91 @@
+model Model
+	culture: en-IN
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-IN
+	valueFilterBehavior: independent
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+queryGroup 'Transform File from dim_customers'
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup 'Transform File from dim_customers\Helper Queries'
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup 'Transform File from dim_products'
+
+	annotation PBI_QueryGroupOrder = 2
+
+queryGroup 'Transform File from dim_products\Helper Queries'
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup 'Transform File from dim_sellers'
+
+	annotation PBI_QueryGroupOrder = 4
+
+queryGroup 'Transform File from dim_sellers\Helper Queries'
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup 'Transform File from fact_order_items'
+
+	annotation PBI_QueryGroupOrder = 6
+
+queryGroup 'Transform File from fact_order_items\Helper Queries'
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup 'Transform File from fact_payments'
+
+	annotation PBI_QueryGroupOrder = 8
+
+queryGroup 'Transform File from fact_payments\Helper Queries'
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup 'Transform File from fact_reviews'
+
+	annotation PBI_QueryGroupOrder = 10
+
+queryGroup 'Transform File from fact_reviews\Helper Queries'
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup 'Transform File from fact_orders'
+
+	annotation PBI_QueryGroupOrder = 12
+
+queryGroup 'Transform File from fact_orders\Helper Queries'
+
+	annotation PBI_QueryGroupOrder = 0
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBI_QueryOrder = ["dim_customers","Sample File","Parameter1","Transform Sample File","Transform File","dim_products","Sample File (2)","Parameter2","Transform Sample File (2)","Transform File (2)","dim_sellers","Sample File (3)","Parameter3","Transform Sample File (3)","Transform File (3)","fact_order_items","Sample File (4)","Parameter4","Transform Sample File (4)","Transform File (4)","fact_payments","Sample File (5)","Parameter5","Transform Sample File (5)","Transform File (5)","fact_reviews","Sample File (6)","Parameter6","Transform Sample File (6)","Transform File (6)","fact_orders","Sample File (7)","Parameter7","Transform Sample File (7)","Transform File (7)"]
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table dim_customers
+ref table dim_products
+ref table dim_sellers
+ref table fact_order_items
+ref table DateTableTemplate_03d5bd78-c4dd-43e9-b1d1-6f73b513f1df
+ref table LocalDateTable_35166630-66cd-42af-9357-d0eb6b80676b
+ref table fact_payments
+ref table fact_reviews
+ref table LocalDateTable_8b6dd198-f018-4e57-9790-c58b647d76fb
+ref table LocalDateTable_d786f2e9-5988-4484-b3d5-a0c7753de693
+ref table fact_orders
+ref table LocalDateTable_6f4f1ab7-10a9-4035-b87d-65be0d73770d
+ref table LocalDateTable_759fcf1a-a230-410b-bbe2-ec81891542fb
+ref table LocalDateTable_231354bc-75f7-4803-8999-41ed9331925f
+ref table LocalDateTable_56cad237-94ae-4324-84f3-1eb5ce5a0ef7
+ref table LocalDateTable_96420b5f-5339-4c0f-9537-7ba9f67dae8b
+ref table LocalDateTable_7fc4da9f-3d82-4e0d-a36f-37b4ddb76b84
+
+ref cultureInfo en-IN
+
