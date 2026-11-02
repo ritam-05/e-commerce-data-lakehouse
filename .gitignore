@@ -1,10 +1,19 @@
-# Environments
-venv/
+# Environment and local configuration
 .env
+.env.*
+!.env.example
+venv/
+.venv/
+env/
+ENV/
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Data (Never commit raw or processed datasets)
+# Data (never commit raw or processed datasets)
 data/
 !data/**/.gitkeep
 
@@ -14,6 +23,10 @@ metastore_db/
 spark-warehouse/
 *.class
 
-# OS generated files
+# Power BI local state and binary exports
+dashboards/**/.pbi/
+dashboards/**/*.pbix
+
+# OS-generated files
 .DS_Store
 Thumbs.db

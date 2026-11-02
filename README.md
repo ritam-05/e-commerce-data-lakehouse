@@ -1,4 +1,4 @@
-# 🛒 E-Commerce Platform Data Lakehouse
+# E-Commerce Platform Data Lakehouse
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
 ![PySpark](https://img.shields.io/badge/Apache_Spark-3.5.0-orange.svg)
@@ -14,7 +14,39 @@ The implementation follows the Medallion architecture: source CSV files are pres
 
 The cloud design deliberately separates transformation from serving. Spark processing runs locally, while only the optimized Gold tables are synchronized to S3. Athena provides on-demand SQL access without maintaining a database server or running AWS Glue ETL jobs, helping keep the cloud compute footprint at **$0 compute cost** for this architecture.
 
-## 🏛 Architecture
+## Key concepts
+
+This section explains the data-engineering terms used throughout the project.
+
+| Concept | Plain-language explanation | How it is used here |
+| --- | --- | --- |
+| **Data lakehouse** | A data platform that combines the low-cost, flexible storage of a data lake with the organized, queryable tables associated with a data warehouse. | Local files and Amazon S3 store the data; Parquet tables, Athena SQL, and Power BI make it usable for analytics. |
+| **Medallion architecture** | A staged approach to improving data quality as it moves from source files to reporting-ready tables. The stages are commonly named Bronze, Silver, and Gold. | The pipeline preserves source data first, then cleans it, then produces business-facing facts and dimensions. |
+| **Raw layer** | An unchanged landing area for source files. Keeping it intact means the pipeline can be rerun and original values can be inspected. | The original Olist CSV files are stored in `data/raw/`. |
+| **Bronze layer** | The first structured copy of raw data. It generally applies minimal transformation and records when the data was loaded. | CSV files are converted to compressed Parquet and assigned an ingestion timestamp. |
+| **Silver layer** | Cleaned and standardized data that is suitable for reliable downstream processing. | The pipeline corrects data types, trims and standardizes text, removes duplicates, and filters invalid values. |
+| **Gold layer** | Curated, business-ready tables designed for reporting, dashboards, and analytics. | Facts and dimensions such as `fact_orders` and `dim_customers` are produced for Athena and Power BI. |
+| **Parquet** | A compressed, column-oriented file format. It is faster and less expensive to query than row-based CSV files for analytical workloads. | Bronze, Silver, and Gold tables are stored as Parquet files. |
+| **Partitioning** | Organizing a large table into folders based on a commonly filtered field so queries read less data. | `fact_orders` is partitioned by purchase year and month. |
+| **Star schema** | A reporting model with central event tables (facts) connected to descriptive lookup tables (dimensions). It makes dashboards easier to build and understand. | `fact_orders` connects order activity to customers, products, sellers, payments, and reviews. |
+| **Fact table** | A table that records measurable business events, such as orders, payments, or order items. | `fact_orders`, `fact_payments`, and `fact_order_items` hold transactional measures. |
+| **Dimension table** | A table that describes the people, products, places, or other categories used to group facts. | `dim_customers`, `dim_products`, and `dim_sellers` provide reporting context. |
+| **ETL pipeline** | A repeatable process that extracts data from sources, transforms it into a usable form, and loads it into a destination. | PySpark scripts move data from Raw through Bronze and Silver to Gold. |
+| **Amazon S3** | AWS object storage for files and datasets. | Optimized Gold Parquet files are published to S3 for cloud-based querying. |
+| **AWS Glue Data Catalog** | A central catalog that stores table definitions and locations, rather than the data itself. | It records the schema and S3 paths that Athena needs to query the Gold data. |
+| **Amazon Athena** | A serverless AWS service that runs SQL directly against files in S3. | It queries the Gold Parquet tables without a database server. |
+| **Power BI and DAX** | Power BI is a business-intelligence tool for interactive reports; DAX is its formula language for measures such as revenue and order counts. | Power BI reads the Gold model and uses DAX to calculate dashboard metrics. |
+
+### How the pieces fit together
+
+1. Source CSV files enter the **Raw** layer.
+2. PySpark converts them into **Bronze** Parquet files and records ingestion metadata.
+3. PySpark cleans and validates the data in the **Silver** layer.
+4. PySpark creates the **Gold** star schema for analysis.
+5. Gold data is queried locally or published to **S3**, cataloged by **Glue**, and queried with **Athena**.
+6. **Power BI** uses the Gold tables to deliver interactive business dashboards.
+
+## Architecture
 
 ![Architecture diagram](docs/images/architecture_diagram.png)
 
@@ -42,18 +74,18 @@ Amazon S3 → AWS Glue Data Catalog → Amazon Athena → Power BI
 
 `fact_orders` is partitioned by `purchase_year` and `purchase_month`. This layout lets Athena prune partitions when a query filters on those fields, lowering the volume of data scanned and improving query performance.
 
-## 🛠 Technology stack
+## Technology stack
 
 | Area | Technology | Purpose |
 | --- | --- | --- |
-| Data processing | Python, Apache Spark (PySpark), Pandas | Ingestion, transformations, and analysis |
+| Data processing | Python, Apache Spark (PySpark) | Ingestion, transformations, and analysis |
 | Data quality | `pytest` | Automated integrity checks before publishing data |
 | Data lake and metadata | Amazon S3, AWS Glue Data Catalog | Durable Gold storage and query metadata |
 | Serverless SQL | Amazon Athena | SQL analytics directly over S3 Parquet files |
 | Business intelligence | Power BI | Interactive reporting from local or cloud-hosted Gold data |
 | Orchestration | Python `subprocess` controller | Ordered execution of pipeline stages |
 
-## 📂 Repository structure
+## Repository structure
 
 ```text
 ecommerce-data-lakehouse/
@@ -80,7 +112,7 @@ The Gold layer separates descriptive entities from transactional events so that 
 
 The model supports common e-commerce metrics such as monthly revenue, average order value (AOV), order growth, delivery performance, product performance, payment behavior, and geographic distribution.
 
-## ☁️ AWS cloud deployment
+## AWS cloud deployment
 
 To avoid AWS Glue ETL DPU-hour charges, the compute-intensive processing stages remain local. The deployment process publishes the resulting Gold Parquet datasets to Amazon S3, where Athena can query them in place.
 
@@ -96,7 +128,7 @@ To avoid AWS Glue ETL DPU-hour charges, the compute-intensive processing stages 
 * **S3 bucket structure:**
   ![S3 Bucket](docs/images/s3_bucket.png)
 
-## 🚀 Run locally
+## Run locally
 
 ### Prerequisites
 
@@ -145,7 +177,7 @@ python -m pytest tests/test_data_quality.py -v --disable-warnings
 python src/analytics/business_queries.py
 ```
 
-## 🧪 Data quality automation
+## Data quality automation
 
 `pytest` validations provide a quality gate between transformation and analytics. The checks focus on the integrity conditions most important to a dimensional reporting model:
 
@@ -156,7 +188,7 @@ python src/analytics/business_queries.py
 
 These checks do not replace source-system governance, but they make quality assumptions explicit and help prevent flawed records from reaching Athena or Power BI.
 
-## 📊 Business intelligence with Power BI
+## Business intelligence with Power BI
 
 The Power BI report turns the Gold layer into an interactive decision-support experience across commercial performance, product and seller outcomes, and customer experience.
 
