@@ -1,4 +1,11 @@
-# E-Commerce Platform Data Lakehouse
+# E-Commerce Platform (Olist) Data Lakehouse
+<p align="center">
+  <img src="docs/images/olist-banner.png" alt="Olist shopping banner" width="100%" />
+</p>
+
+
+## Overview
+
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
 ![PySpark](https://img.shields.io/badge/Apache_Spark-3.5.0-orange.svg)
@@ -7,8 +14,6 @@
 ![Power BI](https://img.shields.io/badge/Power_BI-Analytics-yellow.svg)
 
 An end-to-end data lakehouse for the [Olist Brazilian E-Commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce). The project uses PySpark to turn 100,000+ e-commerce orders into governed, analytics-ready Parquet tables, then exposes the Gold layer through Amazon S3, AWS Glue Data Catalog, Amazon Athena, and Power BI.
-
-## Overview
 
 The implementation follows the Medallion architecture: source CSV files are preserved in a Raw layer, converted to Bronze Parquet, cleansed and standardized in Silver, and modeled into Gold facts and dimensions. The result is a repeatable local processing workflow with a lightweight serverless query layer in AWS.
 
