@@ -333,7 +333,7 @@ Delivery Time (Days) = AVERAGEX(fact_orders, DATEDIFF(fact_orders[order_approved
 * KPI cards for Total Revenue, Total Orders, and Average Order Value, with monetary measures formatted as currency.
 * Monthly Revenue Trend line chart using `purchase_year` and `purchase_month` on the X-axis and Total Revenue on the Y-axis; incomplete September 2018 data is excluded.
 * Order Fulfillment Status donut chart using `order_status` and Total Orders.
-* Date slicer displayed as tiles.
+* Dates displayed as slicers.
 
 <p align="center">
   <img src="docs/images/executive_summary_construction.png" alt="Power BI Executive Summary dashboard showing revenue KPIs, monthly revenue trend, and fulfillment status" width="100%" />
@@ -356,7 +356,6 @@ Delivery Time (Days) = AVERAGEX(fact_orders, DATEDIFF(fact_orders[order_approved
 * Regional Order Volume map using State Location and Total Orders for bubble size.
 * Logistics Bottlenecks stacked bar chart showing Delivery Time (Days) by `customer_state`.
 * Review Score Distribution stacked column chart using `review_score` and Total Reviews.
-* Review Score slicer displayed as tiles.
 
 <p align="center">
   <img src="docs/images/customer_experience.png" alt="Power BI Customer Experience dashboard showing delivery time, reviews, and regional order volume" width="100%" />
