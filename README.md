@@ -1,272 +1,294 @@
 # E-Commerce Platform (Olist) Data Lakehouse
+
 <p align="center">
   <img src="docs/images/olist-banner.png" alt="Olist shopping banner" width="100%" />
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.9%2B-blue.svg" alt="Python 3.9+" />
+  <img src="https://img.shields.io/badge/Apache_Spark-3.5.0-orange.svg" alt="Apache Spark 3.5.0" />
+  <img src="https://img.shields.io/badge/Amazon_S3-Storage-green.svg" alt="Amazon S3" />
+  <img src="https://img.shields.io/badge/Amazon_Athena-Serverless_SQL-purple.svg" alt="Amazon Athena" />
+  <img src="https://img.shields.io/badge/Power_BI-Analytics-yellow.svg" alt="Power BI" />
+</p>
 
-## Overview
+An end-to-end data lakehouse for the [Olist Brazilian E-Commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce). The project uses PySpark to transform 100,000+ e-commerce orders into governed, analytics-ready Parquet tables. Curated Gold data can then be served through Amazon S3, AWS Glue Data Catalog, Amazon Athena, and Power BI.
 
+The design follows Medallion architecture. Source CSV files are retained in Raw, converted to Bronze Parquet, cleaned in Silver, and shaped into Gold facts and dimensions. Transformations run locally; only optimized Gold datasets are published to AWS. This keeps the cloud serving layer lightweight: Athena queries files in S3 without a database server or AWS Glue ETL jobs.
 
-![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
-![PySpark](https://img.shields.io/badge/Apache_Spark-3.5.0-orange.svg)
-![AWS S3](https://img.shields.io/badge/Amazon_S3-Storage-green.svg)
-![Amazon Athena](https://img.shields.io/badge/Amazon_Athena-Serverless_SQL-purple.svg)
-![Power BI](https://img.shields.io/badge/Power_BI-Analytics-yellow.svg)
+## Contents
 
-An end-to-end data lakehouse for the [Olist Brazilian E-Commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce). The project uses PySpark to turn 100,000+ e-commerce orders into governed, analytics-ready Parquet tables, then exposes the Gold layer through Amazon S3, AWS Glue Data Catalog, Amazon Athena, and Power BI.
+- [What this project delivers](#what-this-project-delivers)
+- [Architecture](#architecture)
+- [How the pipeline works](#how-the-pipeline-works)
+- [Gold data model](#gold-data-model)
+- [Run locally](#run-locally)
+- [Publish and query in AWS](#publish-and-query-in-aws)
+- [Data quality](#data-quality)
+- [Power BI dashboard](#power-bi-dashboard)
+- [Repository layout](#repository-layout)
 
-The implementation follows the Medallion architecture: source CSV files are preserved in a Raw layer, converted to Bronze Parquet, cleansed and standardized in Silver, and modeled into Gold facts and dimensions. The result is a repeatable local processing workflow with a lightweight serverless query layer in AWS.
+## What this project delivers
 
-The cloud design deliberately separates transformation from serving. Spark processing runs locally, while only the optimized Gold tables are synchronized to S3. Athena provides on-demand SQL access without maintaining a database server or running AWS Glue ETL jobs, helping keep the cloud compute footprint at **$0 compute cost** for this architecture.
-
-## Key concepts
-
-This section explains the data-engineering terms used throughout the project.
-
-| Concept | Plain-language explanation | How it is used here |
-| --- | --- | --- |
-| **Data lakehouse** | A data platform that combines the low-cost, flexible storage of a data lake with the organized, queryable tables associated with a data warehouse. | Local files and Amazon S3 store the data; Parquet tables, Athena SQL, and Power BI make it usable for analytics. |
-| **Medallion architecture** | A staged approach to improving data quality as it moves from source files to reporting-ready tables. The stages are commonly named Bronze, Silver, and Gold. | The pipeline preserves source data first, then cleans it, then produces business-facing facts and dimensions. |
-| **Raw layer** | An unchanged landing area for source files. Keeping it intact means the pipeline can be rerun and original values can be inspected. | The original Olist CSV files are stored in `data/raw/`. |
-| **Bronze layer** | The first structured copy of raw data. It generally applies minimal transformation and records when the data was loaded. | CSV files are converted to compressed Parquet and assigned an ingestion timestamp. |
-| **Silver layer** | Cleaned and standardized data that is suitable for reliable downstream processing. | The pipeline corrects data types, trims and standardizes text, removes duplicates, and filters invalid values. |
-| **Gold layer** | Curated, business-ready tables designed for reporting, dashboards, and analytics. | Facts and dimensions such as `fact_orders` and `dim_customers` are produced for Athena and Power BI. |
-| **Parquet** | A compressed, column-oriented file format. It is faster and less expensive to query than row-based CSV files for analytical workloads. | Bronze, Silver, and Gold tables are stored as Parquet files. |
-| **Partitioning** | Organizing a large table into folders based on a commonly filtered field so queries read less data. | `fact_orders` is partitioned by purchase year and month. |
-| **Star schema** | A reporting model with central event tables (facts) connected to descriptive lookup tables (dimensions). It makes dashboards easier to build and understand. | `fact_orders` connects order activity to customers, products, sellers, payments, and reviews. |
-| **Fact table** | A table that records measurable business events, such as orders, payments, or order items. | `fact_orders`, `fact_payments`, and `fact_order_items` hold transactional measures. |
-| **Dimension table** | A table that describes the people, products, places, or other categories used to group facts. | `dim_customers`, `dim_products`, and `dim_sellers` provide reporting context. |
-| **ETL pipeline** | A repeatable process that extracts data from sources, transforms it into a usable form, and loads it into a destination. | PySpark scripts move data from Raw through Bronze and Silver to Gold. |
-| **Amazon S3** | AWS object storage for files and datasets. | Optimized Gold Parquet files are published to S3 for cloud-based querying. |
-| **AWS Glue Data Catalog** | A central catalog that stores table definitions and locations, rather than the data itself. | It records the schema and S3 paths that Athena needs to query the Gold data. |
-| **Amazon Athena** | A serverless AWS service that runs SQL directly against files in S3. | It queries the Gold Parquet tables without a database server. |
-| **Power BI and DAX** | Power BI is a business-intelligence tool for interactive reports; DAX is its formula language for measures such as revenue and order counts. | Power BI reads the Gold model and uses DAX to calculate dashboard metrics. |
-
-### How the pieces fit together
-
-1. Source CSV files enter the **Raw** layer.
-2. PySpark converts them into **Bronze** Parquet files and records ingestion metadata.
-3. PySpark cleans and validates the data in the **Silver** layer.
-4. PySpark creates the **Gold** star schema for analysis.
-5. Gold data is queried locally or published to **S3**, cataloged by **Glue**, and queried with **Athena**.
-6. **Power BI** uses the Gold tables to deliver interactive business dashboards.
+| Capability | Outcome |
+| --- | --- |
+| Repeatable ingestion | Local Olist CSV files are converted into Snappy-compressed Parquet, with an ingestion timestamp. |
+| Layered data quality | Bronze preserves source structure, Silver standardizes and validates records, and Gold provides reporting-ready tables. |
+| Analytics model | A seven-table star schema supports revenue, orders, products, sellers, payments, reviews, delivery, and geography analysis. |
+| Quality gate | `pytest` checks run after Gold modeling and before business analytics are generated. |
+| Cloud SQL serving | Gold data can be uploaded to S3, cataloged in Glue, and queried in Athena. |
+| Business intelligence | A Power BI semantic model and three dashboard pages consume the Gold model. |
 
 ## Architecture
 
-![Architecture diagram](docs/images/architecture_diagram.png)
+The system intentionally separates compute from serving. PySpark performs the work locally, while AWS stores and queries the final curated data.
 
-### Repository workflow
+```mermaid
+flowchart LR
+    source[Olist CSV files] --> raw[(Raw<br/>source CSV)]
 
-~~~mermaid
-%% Generated by https://gitdiagram.com/ritam-05/e-commerce-data-lakehouse
+    subgraph local[Local PySpark pipeline]
+        direction LR
+        raw --> bronze[Bronze ingestion] --> bronze_data[(Bronze<br/>Parquet)]
+        bronze_data --> silver[Silver cleansing] --> silver_data[(Silver<br/>Parquet)]
+        silver_data --> gold[Gold modeling] --> gold_data[(Gold facts<br/>and dimensions)]
+        gold_data --> quality{Data-quality<br/>tests}
+        quality -->|pass| analytics[Business queries<br/>and report]
+    end
+
+    subgraph aws[AWS query layer]
+        direction LR
+        gold_data --> publish[Upload Gold data]
+        publish --> s3[(Amazon S3)]
+        s3 --> glue[AWS Glue<br/>Data Catalog]
+        glue --> athena[Amazon Athena]
+    end
+
+    subgraph bi[Business intelligence]
+        direction TB
+        gold_data --> powerbi[Power BI semantic model]
+        athena -. optional cloud access .-> powerbi
+        powerbi --> dashboard[Interactive dashboard]
+    end
+```
+
+### End-to-end flow
+
+```mermaid
 flowchart TD
-
-subgraph group_pipeline["Local pipeline"]
-  node_controller["Pipeline controller<br/>[run_pipeline.py]"]
-  node_paths["Data paths<br/>[paths.py]"]
-end
-
-subgraph group_medallion["Medallion data"]
-  node_raw[("Raw files")]
-  node_ingest["Bronze ingestion"]
-  node_bronze[("Bronze Parquet")]
-  node_silver["Silver cleansing<br/>[process_silver.py]"]
-  node_silverdata[("Silver Parquet")]
-  node_gold["Gold modeling<br/>[process_gold.py]"]
-  node_golddata[("Gold tables")]
-end
-
-subgraph group_analytics["Analytics"]
-  node_queries["Business queries"]
-  node_report["Analytics report"]
-end
-
-subgraph group_cloud["Cloud serving"]
-  node_uploader["S3 publisher<br/>[upload_to_s3.py]"]
-  node_s3[("Amazon S3")]
-  node_glue[("Glue catalog")]
-  node_athena["Athena SQL<br/>[athena_ddl.sql]"]
-end
-
-subgraph group_bi["Power BI"]
-  node_model["Semantic model<br/>[model.tmdl]"]
-  node_dashboard["Interactive report<br/>[report.json]"]
-end
-
-node_source["Olist CSVs"]
-node_user(("BI user"))
-
-node_source -->|"lands as"| node_raw
-node_controller -->|"runs"| node_ingest
-node_controller -->|"runs"| node_silver
-node_controller -->|"runs"| node_gold
-node_controller -->|"runs"| node_queries
-node_ingest -->|"loads paths"| node_paths
-node_silver -->|"loads paths"| node_paths
-node_gold -->|"loads paths"| node_paths
-node_queries -->|"loads paths"| node_paths
-node_ingest -->|"reads"| node_raw
-node_ingest -->|"writes"| node_bronze
-node_silver -->|"reads"| node_bronze
-node_silver -->|"writes"| node_silverdata
-node_gold -->|"reads"| node_silverdata
-node_gold -->|"writes"| node_golddata
-node_queries -->|"queries"| node_golddata
-node_queries -->|"writes"| node_report
-node_uploader -->|"publishes Gold"| node_s3
-node_s3 -->|"catalogs tables"| node_glue
-node_glue -->|"supplies metadata"| node_athena
-node_athena -.->|"serves SQL"| node_user
-node_user -->|"views"| node_dashboard
-node_golddata -->|"models tables"| node_model
-node_model -->|"powers report"| node_dashboard
-
-click node_controller "https://github.com/ritam-05/e-commerce-data-lakehouse/blob/main/scripts/run_pipeline.py"
-click node_paths "https://github.com/ritam-05/e-commerce-data-lakehouse/blob/main/config/paths.py"
-click node_ingest "https://github.com/ritam-05/e-commerce-data-lakehouse/blob/main/src/ingestion/ingest_to_bronze.py"
-click node_silver "https://github.com/ritam-05/e-commerce-data-lakehouse/blob/main/src/transformations/process_silver.py"
-click node_gold "https://github.com/ritam-05/e-commerce-data-lakehouse/blob/main/src/transformations/process_gold.py"
-click node_queries "https://github.com/ritam-05/e-commerce-data-lakehouse/blob/main/src/analytics/business_queries.py"
-click node_report "https://github.com/ritam-05/e-commerce-data-lakehouse/blob/main/docs/business_queries_report.txt"
-click node_uploader "https://github.com/ritam-05/e-commerce-data-lakehouse/blob/main/scripts/upload_to_s3.py"
-click node_athena "https://github.com/ritam-05/e-commerce-data-lakehouse/blob/main/sql/athena_ddl.sql"
-click node_model "https://github.com/ritam-05/e-commerce-data-lakehouse/blob/main/dashboards/ecommerce-bi.SemanticModel/definition/model.tmdl"
-click node_dashboard "https://github.com/ritam-05/e-commerce-data-lakehouse/blob/main/dashboards/ecommerce-bi.Report/definition/report.json"
-
-classDef toneNeutral fill:#f8fafc,stroke:#334155,stroke-width:1.5px,color:#0f172a
-classDef toneBlue fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#172554
-classDef toneAmber fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
-classDef toneMint fill:#dcfce7,stroke:#16a34a,stroke-width:1.5px,color:#14532d
-classDef toneRose fill:#ffe4e6,stroke:#e11d48,stroke-width:1.5px,color:#881337
-classDef toneIndigo fill:#e0e7ff,stroke:#4f46e5,stroke-width:1.5px,color:#312e81
-classDef toneTeal fill:#ccfbf1,stroke:#0f766e,stroke-width:1.5px,color:#134e4a
-class node_controller,node_paths,node_user toneBlue
-class node_raw,node_ingest,node_bronze,node_silver,node_silverdata,node_gold,node_golddata toneAmber
-class node_queries,node_report toneMint
-class node_uploader,node_s3,node_glue,node_athena toneRose
-class node_model,node_dashboard,node_source toneIndigo
-~~~
-
-### Data flow
-
-```text
-Olist CSV files
-    ↓
-Raw layer (data/raw)
-    ↓  PySpark ingestion + ingestion metadata
-Bronze layer (Snappy-compressed Parquet)
-    ↓  cleansing, validation, typing, and deduplication
-Silver layer (conformed Parquet)
-    ↓  dimensional modeling and partitioning
-Gold layer (facts and dimensions)
-    ↓
-Amazon S3 → AWS Glue Data Catalog → Amazon Athena → Power BI
+    A[1. Download Olist CSV files] --> B[2. Put files in data/raw]
+    B --> C[3. Run scripts/run_pipeline.py]
+    C --> D[Bronze: CSV to Parquet + ingestion timestamp]
+    D --> E[Silver: type, clean, validate, deduplicate]
+    E --> F[Gold: facts, dimensions, and partitions]
+    F --> G{Quality tests pass?}
+    G -->|Yes| H[Generate business query report]
+    G -->|No| I[Stop pipeline and investigate]
+    H --> J[Optional: upload Gold to S3]
+    J --> K[Catalog with Glue and query with Athena]
 ```
 
-### The Medallion data pipeline
+### Local orchestration
 
-1. **Bronze layer — raw ingestion.** Reads the nine Olist source CSV files, adds ingestion metadata with `current_timestamp`, and writes Snappy-compressed Parquet. Overwrite-mode writes keep the stage idempotent for repeatable reruns.
-2. **Silver layer — cleansing and conformance.** Applies data types, trims and standardizes text fields, removes duplicate records, and validates operational measures. Invalid mathematical values, such as negative item prices or freight, are excluded from analytics-ready output.
-3. **Gold layer — star-schema modeling.** Produces business-facing fact and dimension tables for reporting and ad hoc SQL. Small lookup tables are suited to Spark broadcast joins, reducing shuffle overhead during local transformations.
+`scripts/run_pipeline.py` executes each stage in dependency order and exits immediately if a command fails. This prevents analytics from being generated from an incomplete or invalid layer.
 
-`fact_orders` is partitioned by `purchase_year` and `purchase_month`. This layout lets Athena prune partitions when a query filters on those fields, lowering the volume of data scanned and improving query performance.
+```mermaid
+flowchart LR
+    A[Bronze ingestion] --> B[Silver transformations] --> C[Gold modeling]
+    C --> D[pytest data-quality checks] --> E[Business analytics report]
+    D -. failure stops workflow .-> F[Fix data or transformation issue]
+```
 
-## Technology stack
+## How the pipeline works
 
-| Area | Technology | Purpose |
+### Medallion layers
+
+```mermaid
+flowchart LR
+    subgraph raw_layer[Raw — preserve the source]
+        R[Original Olist CSV files]
+    end
+    subgraph bronze_layer[Bronze — structure the source]
+        B[Parquet copies<br/>+ ingestion_timestamp]
+    end
+    subgraph silver_layer[Silver — make data trustworthy]
+        S[Typed, trimmed, deduplicated,<br/>and validated datasets]
+    end
+    subgraph gold_layer[Gold — make data useful]
+        G[Star-schema facts and dimensions]
+    end
+    R --> B --> S --> G
+```
+
+| Layer | Purpose | What happens in this project |
 | --- | --- | --- |
-| Data processing | Python, Apache Spark (PySpark) | Ingestion, transformations, and analysis |
-| Data quality | `pytest` | Automated integrity checks before publishing data |
-| Data lake and metadata | Amazon S3, AWS Glue Data Catalog | Durable Gold storage and query metadata |
-| Serverless SQL | Amazon Athena | SQL analytics directly over S3 Parquet files |
-| Business intelligence | Power BI | Interactive reporting from local or cloud-hosted Gold data |
-| Orchestration | Python `subprocess` controller | Ordered execution of pipeline stages |
+| **Raw** | Preserve the supplied source files. | Original Olist CSV files live in `data/raw/` and are not modified by the pipeline. |
+| **Bronze** | Create a reliable, efficient first copy. | Every CSV is read with Spark, including multiline reviews, then written as Snappy Parquet with `ingestion_timestamp`. |
+| **Silver** | Conform and validate source records. | Timestamps are cast, selected text is standardized, duplicates are removed, and invalid prices, freight, and payments are excluded. |
+| **Gold** | Provide a business-friendly analytics model. | Dimensions and facts are written as Parquet; `fact_orders` is partitioned by purchase year and month. |
 
-## Repository structure
+### Silver cleansing rules
 
-```text
-ecommerce-data-lakehouse/
-├── config/             # Path configuration shared by pipeline stages
-├── data/               # Local Raw, Bronze, Silver, and Gold data; Gitignored
-├── docs/               # Generated analytics reports and documentation images
-├── scripts/            # Pipeline orchestration and S3 upload utilities
-├── sql/                # Amazon Athena DDL schemas
-├── src/
-│   ├── analytics/      # Spark SQL business intelligence queries
-│   ├── ingestion/      # CSV-to-Bronze Parquet ingestion
-│   └── transformations/# Silver cleansing and Gold star-schema modeling
-└── tests/              # Pytest data-quality assertions
+The Silver layer makes explicit the quality assumptions used by downstream reporting:
+
+- `orders`: date columns are converted to timestamps and duplicate `order_id` values are removed.
+- `order_items`: duplicate `(order_id, order_item_id)` rows are removed; price must be positive and freight cannot be negative.
+- `payments`: duplicate rows are removed and `payment_value` must be positive.
+- `customers`: duplicate `customer_id` values are removed; city values are trimmed and lowercased.
+- Products, sellers, reviews, and category translations are deduplicated using their relevant keys or complete records.
+- Geolocation is passed through because repeated coordinates are meaningful for density analysis.
+
+### Gold modeling and partitioning
+
+```mermaid
+flowchart TB
+    subgraph silver[Silver inputs]
+        customers[customers]
+        sellers[sellers]
+        products[products]
+        translation[category translation]
+        orders[orders]
+        items[order items]
+        payments[payments]
+        reviews[reviews]
+    end
+
+    subgraph dimensions[Gold dimensions]
+        dc[dim_customers]
+        ds[dim_sellers]
+        dp[dim_products]
+    end
+
+    subgraph facts[Gold facts]
+        fo[fact_orders<br/>partitioned by year/month]
+        fi[fact_order_items]
+        fp[fact_payments]
+        fr[fact_reviews]
+    end
+
+    customers --> dc
+    sellers --> ds
+    products --> dp
+    translation --> dp
+    orders --> fo
+    items --> fi
+    payments --> fp
+    reviews --> fr
 ```
+
+`fact_orders` is stored under `purchase_year` and `purchase_month` partitions. When an Athena query filters on both fields, Athena can read only the relevant folders instead of scanning the full table.
 
 ## Gold data model
 
-The Gold layer separates descriptive entities from transactional events so that dashboards can aggregate measures consistently.
+The Gold layer separates descriptive entities from measurable events. This star-schema style model makes common dashboard measures easier to calculate and explain.
 
-| Table type | Tables | Primary analytical purpose |
+| Type | Table | Role |
 | --- | --- | --- |
-| Dimensions | `dim_customers`, `dim_sellers`, `dim_products` | Customer, seller, location, and product attributes |
-| Facts | `fact_orders`, `fact_order_items`, `fact_payments`, `fact_reviews` | Order lifecycle, line items, payment activity, and customer feedback |
+| Dimension | `dim_customers` | Customer identity and location attributes. |
+| Dimension | `dim_sellers` | Seller identity and location attributes. |
+| Dimension | `dim_products` | Product properties and English product category. |
+| Fact | `fact_orders` | Order lifecycle and purchase-date attributes. |
+| Fact | `fact_order_items` | Order line items, product, seller, price, and freight. |
+| Fact | `fact_payments` | Payment method, installments, and payment value. |
+| Fact | `fact_reviews` | Review score and review timestamps. |
 
-The model supports common e-commerce metrics such as monthly revenue, average order value (AOV), order growth, delivery performance, product performance, payment behavior, and geographic distribution.
+### Relationship subdiagram
 
-## AWS cloud deployment
+```mermaid
+erDiagram
+    DIM_CUSTOMERS ||--o{ FACT_ORDERS : customer_id
+    FACT_ORDERS ||--o{ FACT_ORDER_ITEMS : order_id
+    DIM_PRODUCTS ||--o{ FACT_ORDER_ITEMS : product_id
+    DIM_SELLERS ||--o{ FACT_ORDER_ITEMS : seller_id
+    FACT_ORDERS ||--o{ FACT_PAYMENTS : order_id
+    FACT_ORDERS ||--o{ FACT_REVIEWS : order_id
 
-To avoid AWS Glue ETL DPU-hour charges, the compute-intensive processing stages remain local. The deployment process publishes the resulting Gold Parquet datasets to Amazon S3, where Athena can query them in place.
+    DIM_CUSTOMERS {
+        string customer_id PK
+        string customer_state
+        string customer_city
+    }
+    DIM_SELLERS {
+        string seller_id PK
+        string seller_state
+    }
+    DIM_PRODUCTS {
+        string product_id PK
+        string product_category
+    }
+    FACT_ORDERS {
+        string order_id PK
+        string customer_id FK
+        int purchase_year
+        int purchase_month
+    }
+    FACT_ORDER_ITEMS {
+        string order_id FK
+        string product_id FK
+        string seller_id FK
+        double price
+        double freight_value
+    }
+    FACT_PAYMENTS {
+        string order_id FK
+        double payment_value
+    }
+    FACT_REVIEWS {
+        string review_id PK
+        string order_id FK
+        int review_score
+    }
+```
 
-1. **S3 storage:** Upload Gold Parquet files to `s3://ritam-ecommerce-lakehouse-gold` in `ap-southeast-2`.
-2. **Metadata and SQL access:** Run the statements in `sql/athena_ddl.sql` to create the `ecommerce_gold` database and its external-table definitions.
-3. **Partition discovery:** After new `fact_orders` partitions are uploaded, run `MSCK REPAIR TABLE ecommerce_gold.fact_orders` in Athena to register them.
-4. **Query efficiently:** Include `purchase_year` and `purchase_month` filters whenever practical so Athena scans only relevant partitions.
+This model supports monthly revenue, average order value (AOV), order growth, fulfillment and delivery performance, category and seller performance, payment behavior, reviews, and regional order volume.
 
-### Proof of cloud execution
+## Technology stack
 
-* **Amazon Athena query execution:**
-  ![Athena Console](docs/images/athena_query.png)
-* **S3 bucket structure:**
-  ![S3 Bucket](docs/images/s3_bucket.png)
+| Area | Technology | Responsibility |
+| --- | --- | --- |
+| Data processing | Python and PySpark 3.5.0 | Ingestion, transformations, and local analysis. |
+| Storage format | Snappy-compressed Parquet | Efficient, columnar storage for Bronze through Gold layers. |
+| Quality assurance | `pytest` | Gold-layer integrity checks. |
+| Data lake and metadata | Amazon S3 and AWS Glue Data Catalog | Gold data storage and table metadata. |
+| Serverless SQL | Amazon Athena | SQL directly against Gold Parquet in S3. |
+| BI | Power BI and DAX | Semantic model, measures, and interactive reporting. |
+| Orchestration | Python `subprocess` controller | Ordered, fail-fast execution of pipeline stages. |
 
 ## Run locally
 
 ### Prerequisites
 
-Before running the pipeline, install Python 3.9 or later and a Java runtime compatible with PySpark. The source Olist CSV files are intentionally not versioned and must be supplied locally.
+- Python 3.9 or later.
+- A Java runtime compatible with PySpark.
+- The Olist dataset CSV files downloaded from [Kaggle](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce).
 
-### Installation
+The dataset itself is intentionally not versioned in this repository.
 
-1. Clone the repository and install dependencies:
+### Install and prepare data
 
-   ```bash
-   git clone [https://github.com/YOUR_USERNAME/ecommerce-data-lakehouse.git](https://github.com/YOUR_USERNAME/ecommerce-data-lakehouse.git)
-   cd ecommerce-data-lakehouse
-   python -m venv venv
-   ```
+```powershell
+git clone https://github.com/YOUR_USERNAME/ecommerce-data-lakehouse.git
+cd ecommerce-data-lakehouse
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-2. Activate the virtual environment and install packages:
+Place the downloaded CSV files directly in `data/raw/`. The pipeline discovers every `.csv` file in that directory; the standard Olist download contains the datasets used by the downstream transformations.
 
-   ```powershell
-   .\venv\Scripts\Activate.ps1
-   pip install -r requirements.txt
-   ```
+### Run the complete pipeline
 
-3. Download the Olist dataset and place its CSV files in `data/raw/`.
-
-### Execute the complete workflow
-
-Run the controller from the repository root:
-
-```bash
+```powershell
 python scripts/run_pipeline.py
 ```
 
-The controller runs the stages in dependency order: Bronze ingestion, Silver transformations, Gold modeling, data-quality tests, and business analytics. It stops immediately if a stage fails, preventing incomplete or invalid data from flowing into subsequent steps.
+On success, the pipeline creates local Bronze, Silver, and Gold outputs under `data/` and writes the analytics results to `docs/business_queries_report.txt`.
 
-The generated analytics report is available at `docs/business_queries_report.txt` after a successful run.
+### Run an individual stage
 
-### Run individual stages
+Use individual commands while developing or troubleshooting:
 
-Each stage can also be executed independently when developing or troubleshooting:
-
-```bash
+```powershell
 python src/ingestion/ingest_to_bronze.py
 python src/transformations/process_silver.py
 python src/transformations/process_gold.py
@@ -274,45 +296,81 @@ python -m pytest tests/test_data_quality.py -v --disable-warnings
 python src/analytics/business_queries.py
 ```
 
-## Data quality automation
+## Publish and query in AWS
 
-`pytest` validations provide a quality gate between transformation and analytics. The checks focus on the integrity conditions most important to a dimensional reporting model:
+The cloud deployment publishes only Gold outputs. This avoids using AWS Glue ETL for transformations; Athena then provides on-demand SQL over the Parquet files in S3. Athena costs, if any, depend on data scanned by queries.
 
-* Primary-key uniqueness for fact-table records.
-* Referential integrity checks using left anti-joins to identify orphaned foreign keys between facts and dimensions.
-* Validation that revenue-related and freight values are not negative.
-* Repeatable execution that makes failures visible in local development and automated runs.
+```mermaid
+sequenceDiagram
+    participant Local as Local Gold layer
+    participant S3 as Amazon S3
+    participant Glue as Glue Data Catalog
+    participant Athena as Amazon Athena
+    participant User as Analyst / Power BI
 
-These checks do not replace source-system governance, but they make quality assumptions explicit and help prevent flawed records from reaching Athena or Power BI.
+    Local->>S3: Upload Gold Parquet datasets
+    User->>Glue: Run Athena DDL from sql/athena_ddl.sql
+    Glue->>Athena: Expose table metadata
+    User->>Athena: Run MSCK REPAIR TABLE for new order partitions
+    User->>Athena: Query Gold tables with SQL
+    Athena-->>User: Return query results
+```
 
-## Business intelligence with Power BI
+1. Upload Gold Parquet data to `s3://ritam-ecommerce-lakehouse-gold` in `ap-southeast-2`, using `scripts/upload_to_s3.py`.
+2. Run [sql/athena_ddl.sql](sql/athena_ddl.sql) to create the `ecommerce_gold` database and external table definitions.
+3. After uploading new `fact_orders` partitions, run:
 
-The Power BI report turns the Gold layer into an interactive decision-support experience across commercial performance, product and seller outcomes, and customer experience.
+   ```sql
+   MSCK REPAIR TABLE ecommerce_gold.fact_orders;
+   ```
 
-### Data ingestion and transformation
+4. Filter Athena queries by `purchase_year` and `purchase_month` whenever practical to take advantage of partition pruning.
 
-Power BI uses the **Folder** connector to batch-load seven local Gold-layer Parquet tables produced by the PySpark lakehouse. In Power Query, the `Extension` column is filtered to exclude hidden `.crc` files and `(blank)` values before binaries are combined.
+### Proof of cloud execution
 
-### Data model
+<p align="center">
+  <img src="docs/images/athena_query.png" alt="Athena query execution" width="48%" />
+  <img src="docs/images/s3_bucket.png" alt="S3 Gold bucket structure" width="48%" />
+</p>
 
-`fact_orders` is the central hub of the one-to-many star schema. The following relationships connect dimensions and related facts:
+## Data quality
 
-| From | To | Key |
-| --- | --- | --- |
-| `dim_customers` | `fact_orders` | `customer_id` |
-| `fact_orders` | `fact_order_items` | `order_id` |
-| `dim_products` | `fact_order_items` | `product_id` |
-| `dim_sellers` | `fact_order_items` | `seller_id` |
-| `fact_orders` | `fact_payments` | `order_id` |
-| `fact_orders` | `fact_reviews` | `order_id` |
+Data-quality tests form a gate between Gold modeling and analytics. They make reporting assumptions executable rather than implicit.
 
-To make customer states resolve correctly in the map visual, `dim_customers` includes this calculated column:
+```mermaid
+flowchart LR
+    gold[Gold Parquet tables] --> checks{pytest checks}
+    checks --> pk[Required order IDs and uniqueness]
+    checks --> ref[Fact-to-dimension relationships]
+    checks --> values[Non-negative revenue and freight]
+    pk --> decision{All checks pass?}
+    ref --> decision
+    values --> decision
+    decision -->|Yes| analytics[Analytics and publication]
+    decision -->|No| fix[Investigate failed assertion]
+```
+
+The test suite checks:
+
+- Non-null and unique `order_id` values in `fact_orders`.
+- Referential integrity between `fact_orders` and `dim_customers`, using a left anti-join to surface orphaned keys.
+- Non-negative revenue-related and freight values.
+- Review scores restricted to whole-number values from 1 through 5.
+- Repeatable local execution through `pytest`.
+
+These tests do not replace source-system governance, but they prevent a known set of invalid conditions from reaching downstream analytics.
+
+## Power BI dashboard
+
+Power BI batch-loads the seven local Gold Parquet tables through the **Folder** connector. In Power Query, the `Extension` column is filtered to remove hidden `.crc` files and blank values before the Parquet binaries are combined.
+
+The report uses `fact_orders` as the central hub of its one-to-many model. For map visuals, `dim_customers` includes this calculated column:
 
 ```DAX
 State Location = dim_customers[customer_state] & ", Brazil"
 ```
 
-### DAX measures
+### Core measures
 
 ```DAX
 Total Orders = DISTINCTCOUNT(fact_orders[order_id])
@@ -326,37 +384,74 @@ Total Reviews = COUNT(fact_reviews[review_id])
 Delivery Time (Days) = AVERAGEX(fact_orders, DATEDIFF(fact_orders[order_approved_at], fact_orders[order_delivered_customer_date], DAY))
 ```
 
-### Dashboard pages
+### Dashboard navigation
 
-#### Page 1 — Executive Summary
+```mermaid
+flowchart LR
+    report[Power BI report] --> executive[Executive Summary]
+    report --> product[Product & Seller Performance]
+    report --> experience[Customer Experience]
+    executive --> revenue[Revenue, orders, AOV,<br/>monthly trend, status]
+    product --> sellers[Categories, sellers,<br/>freight comparison]
+    experience --> customers[Reviews, delivery time,<br/>regional order volume]
+```
 
-* KPI cards for Total Revenue, Total Orders, and Average Order Value, with monetary measures formatted as currency.
-* Monthly Revenue Trend line chart using `purchase_year` and `purchase_month` on the X-axis and Total Revenue on the Y-axis; incomplete September 2018 data is excluded.
-* Order Fulfillment Status donut chart using `order_status` and Total Orders.
-* Dates displayed as slicers.
+#### Executive Summary
 
-<p align="center">
-  <img src="docs/images/executive_summary_construction.png" alt="Power BI Executive Summary dashboard showing revenue KPIs, monthly revenue trend, and fulfillment status" width="100%" />
-</p>
-
-#### Page 2 — Product & Seller Performance
-
-* Top 10 Categories by Revenue stacked bar chart, filtered to the top 10 `product_category` values by Product Revenue.
-* Top Sellers matrix with `seller_id`, Product Revenue, and Items Sold.
-* Profitability vs. Logistics scatter plot: Product Revenue on the X-axis, Average Freight on the Y-axis, grouped by `product_category`.
-* Product Category dropdown slicer.
+- KPI cards for Total Revenue, Total Orders, and Average Order Value.
+- Monthly Revenue Trend by purchase year and month; incomplete September 2018 data is excluded.
+- Order Fulfillment Status donut chart and date slicers.
 
 <p align="center">
-  <img src="docs/images/products%26sellers.png" alt="Power BI Product and Seller Performance dashboard showing category revenue, sellers, and freight analysis" width="100%" />
+  <img src="docs/images/executive_summary_construction.png" alt="Power BI Executive Summary dashboard" width="100%" />
 </p>
 
-#### Page 3 — Customer Experience
+#### Product & Seller Performance
 
-* KPI cards for Average Review Score and Delivery Time (Days), each displayed to one decimal place.
-* Regional Order Volume map using State Location and Total Orders for bubble size.
-* Logistics Bottlenecks stacked bar chart showing Delivery Time (Days) by `customer_state`.
-* Review Score Distribution stacked column chart using `review_score` and Total Reviews.
+- Top 10 categories by Product Revenue.
+- Seller matrix with revenue and items sold.
+- Product Revenue versus Average Freight scatter plot, grouped by category.
+- Product Category slicer.
 
 <p align="center">
-  <img src="docs/images/customer_experience.png" alt="Power BI Customer Experience dashboard showing delivery time, reviews, and regional order volume" width="100%" />
+  <img src="docs/images/products%26sellers.png" alt="Power BI Product and Seller Performance dashboard" width="100%" />
 </p>
+
+#### Customer Experience
+
+- KPI cards for Average Review Score and Delivery Time (Days).
+- Regional order-volume map using `State Location`.
+- Delivery-time analysis by customer state and review-score distribution.
+
+<p align="center">
+  <img src="docs/images/customer_experience.png" alt="Power BI Customer Experience dashboard" width="100%" />
+</p>
+
+## Repository Layout
+
+```text
+ecommerce-data-lakehouse/
+├── config/                 # Shared path configuration
+├── data/                   # Local Raw, Bronze, Silver, and Gold data (Gitignored)
+├── dashboards/             # Power BI project, semantic model, and report definition
+├── docs/                   # Generated analytics report and documentation images
+├── scripts/                # Pipeline controller and S3 upload utility
+├── sql/                    # Athena external-table DDL
+├── src/
+│   ├── analytics/          # Spark SQL business queries
+│   ├── ingestion/          # CSV-to-Bronze ingestion
+│   └── transformations/    # Silver cleansing and Gold modeling
+└── tests/                  # Pytest data-quality assertions
+```
+
+## Key Concepts & Technologies used
+
+| Concept | Meaning (here) |
+| --- | --- |
+| **Data lakehouse** | File-based, low-cost storage paired with governed Parquet tables and SQL/BI access. |
+| **Medallion architecture** | A progression from preserved source data to cleaned data to business-facing models. |
+| **Parquet** | Compressed, column-oriented analytics storage used for Bronze, Silver, and Gold. |
+| **Star schema** | A central set of facts connected to descriptive dimensions for straightforward reporting. |
+| **Partitioning** | Folder-based organization of `fact_orders` by purchase year and month to reduce Athena scan volume. |
+| **AWS Glue Data Catalog** | Metadata that tells Athena a table's schema and S3 location; it does not store the data itself. |
+| **Amazon Athena** | Serverless SQL over S3-resident files. |
