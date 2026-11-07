@@ -41,36 +41,7 @@ The design follows Medallion architecture. Source CSV files are retained in Raw,
 
 ## Architecture
 
-The system intentionally separates compute from serving. PySpark performs the work locally, while AWS stores and queries the final curated data.
-
-```mermaid
-flowchart LR
-    source[Olist CSV files] --> raw[(Raw<br/>source CSV)]
-
-    subgraph local[Local PySpark pipeline]
-        direction LR
-        raw --> bronze[Bronze ingestion] --> bronze_data[(Bronze<br/>Parquet)]
-        bronze_data --> silver[Silver cleansing] --> silver_data[(Silver<br/>Parquet)]
-        silver_data --> gold[Gold modeling] --> gold_data[(Gold facts<br/>and dimensions)]
-        gold_data --> quality{Data-quality<br/>tests}
-        quality -->|pass| analytics[Business queries<br/>and report]
-    end
-
-    subgraph aws[AWS query layer]
-        direction LR
-        gold_data --> publish[Upload Gold data]
-        publish --> s3[(Amazon S3)]
-        s3 --> glue[AWS Glue<br/>Data Catalog]
-        glue --> athena[Amazon Athena]
-    end
-
-    subgraph bi[Business intelligence]
-        direction TB
-        gold_data --> powerbi[Power BI semantic model]
-        athena -. optional cloud access .-> powerbi
-        powerbi --> dashboard[Interactive dashboard]
-    end
-```
+![Architecture diagram](docs/images/architecture_diagram.png)
 
 ### End-to-end flow
 
