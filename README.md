@@ -347,12 +347,18 @@ State Location = dim_customers[customer_state] & ", Brazil"
 Total Orders = DISTINCTCOUNT(fact_orders[order_id])
 Total Revenue = SUM(fact_payments[payment_value])
 Average Order Value = [Total Revenue] / [Total Orders]
-Average Review Score = AVERAGE(fact_reviews[review_score])
-Average Freight = AVERAGE(fact_order_items[freight_value])
+Cancellation Rate = DIVIDE(CALCULATE(DISTINCTCOUNT(fact_orders[order_id]), fact_orders[order_status] = "canceled"), [Total Orders], 0)
+
 Product Revenue = SUM(fact_order_items[price])
 Items Sold = COUNT(fact_order_items[order_item_id])
+Avg Product Price = AVERAGE(fact_order_items[price])
+Average Freight = AVERAGE(fact_order_items[freight_value])
+Seller Orders Fulfilled = DISTINCTCOUNT(fact_order_items[order_id])
+
+Average Review Score = AVERAGE(fact_reviews[review_score])
 Total Reviews = COUNT(fact_reviews[review_id])
 Delivery Time (Days) = AVERAGEX(fact_orders, DATEDIFF(fact_orders[order_approved_at], fact_orders[order_delivered_customer_date], DAY))
+On-Time Delivery Rate = DIVIDE(CALCULATE(DISTINCTCOUNT(fact_orders[order_id]), fact_orders[order_delivered_customer_date] <= fact_orders[order_estimated_delivery_date]), [Total Orders], 0)
 ```
 
 ### Dashboard navigation
